@@ -124,9 +124,9 @@ contract TokenYield {
         require(placements[msg.sender].amount - _amount > 0);
 
         PlacementResults memory results = computeResults();
-        uint256 penalty = results.interests * results.penaltyRatio;
-        placementToken.burnFrom(owner, _amount - penalty);
-        placementToken.mint(msg.sender, _amount - penalty);
+        uint256 penalties = results.interests * results.penaltyRatio;
+        placementToken.burnFrom(owner, _amount - penalties); // this is where we may earn money
+        placementToken.mint(msg.sender, _amount - penalties);
         uint256 startDate = block.timestamp;
         placements[msg.sender] = Placement({startingDate: startDate, amount: _amount});
     }
