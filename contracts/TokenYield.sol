@@ -27,7 +27,7 @@ struct Placement {
  */
 struct PlacementResults {
     /** 
-     * This is effective interest rate calulated from 
+     * This is effective interest, independant of any penalty, calulated from 
      * (1) the ratio of the contract
      * (2) the placement duration
      */
