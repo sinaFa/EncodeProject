@@ -22,7 +22,10 @@ struct Placement {
     uint256 amount;
 }
 
-struct Yield {
+/**
+ * PlacementResults is made of interests and penalties
+ */
+struct PlacementResults {
     /** 
      * This is effective interest rate calulated from 
      * (1) the ratio of the contract
@@ -30,10 +33,11 @@ struct Yield {
      */
     uint256 interests;
      /**
-      * This is the penalties, depending on contract duration
-      * This is in 1000th (e.g. 50 = 5%) 
+      * This is the penalties ratio, depending on contract duration
+      * This is in 1000th (e.g. 50 = 5%),
+      * because Solidity don't have floating point type.
       */
-    uint256 penalties;
+    uint256 penaltyRatio;
 }
 
 /**
@@ -47,7 +51,7 @@ contract TokenYield {
 
     uint256 public interestsRatio;
     uint256 public tokenPrice;
-    IMyERC20Token public yieldToken;
+    IMyERC20Token public placementToken;
     mapping(address => Placement) public placements;
     address owner;
 
@@ -55,37 +59,26 @@ contract TokenYield {
         owner          = msg.sender;
         interestsRatio = _ratio;
         tokenPrice     = _price;
-        yieldToken     = IMyERC20Token(_token);
+        placementToken     = IMyERC20Token(_token);
     }
 
     function purchaseTokens() external payable{
-        yieldToken.mint(msg.sender, msg.value / interestsRatio);
+        placementToken.mint(msg.sender, msg.value / interestsRatio);
     }
 
     function burnTokens(uint256 amount) external {
-        yieldToken.burnFrom(msg.sender,amount);
+        placementToken.burnFrom(msg.sender,amount);
         payable(msg.sender).transfer(amount * interestsRatio);
     }
 
-    /**
-     * This stakes (locks) tokens
-     * @param _amount is the amount of tokens the caller wants to stake
-     */
-    function stakeTokens(uint256 _amount) external {
-        yieldToken.burnFrom(msg.sender,_amount);
-        yieldToken.mint(owner, _amount);
-        uint256 startDate = block.timestamp;
-        placements[msg.sender] = Placement({startingDate: startDate, amount: _amount});
-    }
-
    /**
-     * This retreives interests and penalties from investment, according to past time
+     * This compute investment results, according to past time
      * Interests = 0, if investement duration < PERIOD_LENGTH
-     * @return yield
+     * @return results
      */
-    function getInterests() public view returns (Yield yield){
+    function computeResults() public view returns (PlacementResults memory results){
 
-        yield = Yield(0, 0);
+        results = PlacementResults(0, 0);
 
         require(placements[msg.sender].amount > 0);
         uint256 currentDate = block.timestamp;
@@ -93,33 +86,47 @@ contract TokenYield {
         uint256 duration    = currentDate - startDate;
         uint256 periods     = duration / PERIOD_LENGTH;
 
+        results.penaltyRatio = 0;
+
         if (periods < 12)
-            yield.penalties = 15; // 1.5 % (15 / 1000)
+            results.penaltyRatio = 15; // 1.5 % (15 / 1000)
         if (periods < 6)
-            yield.penalties = 20; // 2 %   (20 / 1000)
+            results.penaltyRatio = 20; // 2 %   (20 / 1000)
         if (periods < 3)
-            yield.penalties = 30; // 3 %   (30 / 1000)
+            results.penaltyRatio = 30; // 3 %   (30 / 1000)
         if (periods < 2)
-            yield.penalties = 50; // 5 %   (50 / 1000)
+            results.penaltyRatio = 50; // 5 %   (50 / 1000)
 
-        yield.interests = placements[msg.sender].amount * periods * interestsRatio / PERIODS_PER_YEAR;
+        results.interests = placements[msg.sender].amount * periods * interestsRatio / PERIODS_PER_YEAR;
 
-        if (periods < 1) {
-            interests = 0;
-            penalties = 0;
-        }
+        if (periods < 1)
+            results.interests = 0;
+    }
+
+    /**
+     * This stakes (locks) tokens
+     * @param _amount is the amount of tokens the caller wants to stake
+     */
+    function stakeTokens(uint256 _amount) external {
+        placementToken.burnFrom(msg.sender,_amount);
+        placementToken.mint(owner, _amount);
+        uint256 startDate = block.timestamp;
+        placements[msg.sender] = Placement({startingDate: startDate, amount: _amount});
     }
 
    /**
-     * This unstakes (unlocks) tokens
+     * This unstakes (unlocks) tokens.
+     * This retrieves placement results, gives interests to caller and substract penalties, if any.
+     * This sends penalties, if any, to this contract owner
      * @param _amount is the amount of tokens the caller wants to unstake
      */
     function unstakeTokens(uint256 _amount) external {
         require(placements[msg.sender].amount - _amount > 0);
 
-        uint256 interests, penalties = getInterests();
-        yieldToken.burnFrom(owner, _amount);
-        yieldToken.mint(msg.sender, _amount);
+        PlacementResults memory results = computeResults();
+        uint256 penalty = results.interests * results.penaltyRatio;
+        placementToken.burnFrom(owner, _amount - penalty);
+        placementToken.mint(msg.sender, _amount - penalty);
         uint256 startDate = block.timestamp;
         placements[msg.sender] = Placement({startingDate: startDate, amount: _amount});
     }
