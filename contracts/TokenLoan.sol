@@ -52,14 +52,14 @@ struct PlacementResults {
  * This contract permits to gain interest on locked token
  * Interest are provided each 2 weeks
  */
-contract TokenYield {
+contract TokenLoan {
     uint256 public constant PERIOD_LENGTH = 2 weeks;
     uint256 public constant PERIODS_PER_YEAR = 24;
 
     uint256 public constant INITIALDATE = 1671223621; // GMT: Friday 16 December 2022 20:47:01
 
-    uint256 public interestsRatio;
-    uint256 public feesRatio;
+    uint256 public interestsRatio; // this is percentage
+    uint256 public feesRatio;      // this is percentage
     uint256 public tokenPrice;
     IMyERC20Token public placementToken;
     mapping(address => Placement) public placements;
@@ -79,12 +79,12 @@ contract TokenYield {
     }
 
     function purchaseTokens() external payable {
-        placementToken.mint(msg.sender, msg.value / interestsRatio);
+        placementToken.mint(msg.sender, msg.value / tokenPrice);
     }
 
     function burnTokens(uint256 amount) external {
         placementToken.burnFrom(msg.sender, amount);
-        payable(msg.sender).transfer(amount * interestsRatio);
+        payable(msg.sender).transfer(amount * tokenPrice);
     }
 
     /**
@@ -116,7 +116,7 @@ contract TokenYield {
         if (periods < 2) results.penaltyRatio = 50; // 5 %   (50 / 1000)
 
         results.profits =
-            (placements[msg.sender].amount * periods * interestsRatio) /
+            (placements[msg.sender].amount * periods * interestsRatio / 100) /
             PERIODS_PER_YEAR;
 
         if (periods < 1) results.profits = 0;
@@ -150,7 +150,7 @@ contract TokenYield {
         PlacementResults memory results = _computeResults();
 
         // fees are calculated on results, before penalties
-        uint256 fees = results.profits * feesRatio;
+        uint256 fees = results.profits * feesRatio / 100;
         uint256 profits = _amount + results.profits - fees - results.penalties;
 
         require(profits > 0);
