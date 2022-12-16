@@ -149,6 +149,7 @@ contract TokenYield {
 
         PlacementResults memory results = _computeResults();
 
+        // fees are calculated on results, before penalties
         uint256 fees = results.profits * feesRatio;
         uint256 profits = _amount + results.profits - fees - results.penalties;
 
