@@ -165,6 +165,4 @@ contract TokenYield {
             amount: remaining
         });
     }
-
-    function ownerWithdraw(uint256 tokenId) external {}
 }
