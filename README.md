@@ -4,7 +4,7 @@ This project demonstrates stacking solution. It comes with a smart contract, a t
 
 ## Contributors
 - Engin Erdogan
-- Oleg 
+- Oleg Lodygensky
 - Sina Fakheri
 
 
