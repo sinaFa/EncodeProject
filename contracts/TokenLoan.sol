@@ -6,11 +6,7 @@ interface IMyERC20Token {
 
     function burnFrom(address to, uint256 amount) external;
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external;
+    function transferFrom(address from, address to, uint256 amount) external;
 
     function balanceOf(address account) external returns (uint256);
 }
@@ -37,12 +33,11 @@ struct PlacementResults {
     uint256 profits;
     /**
      * This is the penalties ratio, depending on contract duration
-     * This is in 1000th (e.g. 50 = 5%),
-     * because Solidity don't have floating point type.
+     * This is in 100th
      */
     uint256 penaltyRatio;
     /**
-     * This is the penalties = yields * penaltyRatio / 1000;
+     * This is the penalties = yields * penaltyRatio / 100;
      * This must be substracted from profits
      */
     uint256 penalties;
@@ -59,20 +54,20 @@ contract TokenLoan {
     uint256 public constant INITIALDATE = 1671223621; // GMT: Friday 16 December 2022 20:47:01
 
     uint256 public interestsRatio; // this is percentage
-    uint256 public feesRatio;      // this is percentage
+    uint256 public feesRatio; // this is percentage
     uint256 public tokenPrice;
     IMyERC20Token public placementToken;
     mapping(address => Placement) public placements;
     address owner;
 
     constructor(
-        uint256 _interestRatio,
+        uint256 _interestsRatio,
         uint256 _feesRatio,
         uint256 _price,
         address _token
     ) {
         owner = msg.sender;
-        interestsRatio = _interestRatio;
+        interestsRatio = _interestsRatio;
         feesRatio = _feesRatio;
         tokenPrice = _price;
         placementToken = IMyERC20Token(_token);
@@ -110,18 +105,18 @@ contract TokenLoan {
 
         results.penaltyRatio = 0;
 
-        if (periods < 12) results.penaltyRatio = 15; // 1.5 % (15 / 1000)
-        if (periods < 6) results.penaltyRatio = 20; // 2 %   (20 / 1000)
-        if (periods < 3) results.penaltyRatio = 30; // 3 %   (30 / 1000)
-        if (periods < 2) results.penaltyRatio = 50; // 5 %   (50 / 1000)
+        if (periods < 12) results.penaltyRatio = 1;
+        if (periods < 6) results.penaltyRatio = 2;
+        if (periods < 3) results.penaltyRatio = 3;
+        if (periods < 2) results.penaltyRatio = 5;
 
         results.profits =
-            (placements[msg.sender].amount * periods * interestsRatio / 100) /
+            ((placements[msg.sender].amount * periods * interestsRatio) / 100) /
             PERIODS_PER_YEAR;
 
         if (periods < 1) results.profits = 0;
 
-        results.penalties = (results.profits * results.penaltyRatio) / 1000;
+        results.penalties = (results.profits * results.penaltyRatio) / 100;
     }
 
     /**
@@ -150,7 +145,7 @@ contract TokenLoan {
         PlacementResults memory results = _computeResults();
 
         // fees are calculated on results, before penalties
-        uint256 fees = results.profits * feesRatio / 100;
+        uint256 fees = (results.profits * feesRatio) / 100;
         uint256 profits = _amount + results.profits - fees - results.penalties;
 
         require(profits > 0);
