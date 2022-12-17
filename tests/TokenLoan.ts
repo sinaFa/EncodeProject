@@ -46,7 +46,7 @@ describe("Token Loan", async () => {
     });
   });
 
-  describe("When a user purchase an ERC20 from the Token contract", async () => {
+  describe("When a user purchase an ERC20 from the loan contract", async () => {
 
     const ETH_SENT = ethers.utils.parseEther("1");
     let balanceBefore: BigNumber;
@@ -55,27 +55,23 @@ describe("Token Loan", async () => {
 
     beforeEach(async () => {
       balanceBefore = await accounts[1].getBalance();
-      //console.log(`balanceBefore = ${balanceBefore}`);
+//      console.log("balanceBefore = " + ethers.utils.formatEther(balanceBefore));
       const tx = await loanContract.connect(accounts[1]).purchaseTokens({ value: ETH_SENT });
       const txReceipt = await tx.wait();
       const gasUsage = txReceipt.gasUsed;
       const gasPrice = txReceipt.effectiveGasPrice;
       gasCost = gasUsage.mul(gasPrice);
-/*      console.log(`gasUsage = ${gasUsage}`);
-      console.log(`gasPrice = ${gasPrice}`);
-      console.log(`gasCost = ${gasCost}`);
-      */
       balanceAfter = await accounts[1].getBalance();
-      //console.log(`balanceAfter = ${balanceAfter}`);
+
+//      console.log("balanceAfter = " + ethers.utils.formatEther(balanceAfter));
+      const tokenPrice = await loanContract.tokenPrice();
+      const expectedBalance = balanceBefore.sub(ETH_SENT).sub(gasCost);
+//      console.log("expectedBalance = " + ethers.utils.formatEther(expectedBalance));
     });
 
     it("charges the correct amount of ETH", async () => {
       const tokenPrice = await loanContract.tokenPrice();
-      console.log(`tokenPrice = ${tokenPrice}`);
-      console.log(`balanceBefore = ${balanceBefore}`);
-      console.log(`ETH_SENT   = ${ETH_SENT}`);
-      console.log(`tokenPrice = ${tokenPrice}`);
-      const expectedBalance = balanceBefore.sub(ETH_SENT.div(tokenPrice)).sub(gasCost);
+      const expectedBalance = balanceBefore.sub(ETH_SENT).sub(gasCost);
       expect(balanceAfter).to.eq(expectedBalance);
     });
 
@@ -85,8 +81,39 @@ describe("Token Loan", async () => {
       expect(balance).to.eq(ETH_SENT.div(ratio));
     });
 
+    describe("When the user stake some tokens", async () => {
 
-    describe("When a user burns an ERC20 at the Token contract", async () => {
+      beforeEach(async () => {
+        balanceBefore = await accounts[1].getBalance();
+  //      console.log("balanceBefore = " + ethers.utils.formatEther(balanceBefore));
+        const tx = await loanContract.connect(accounts[1]).purchaseTokens({ value: ETH_SENT });
+        const txReceipt = await tx.wait();
+        const gasUsage = txReceipt.gasUsed;
+        const gasPrice = txReceipt.effectiveGasPrice;
+        gasCost = gasUsage.mul(gasPrice);
+        balanceAfter = await accounts[1].getBalance();
+  
+  //      console.log("balanceAfter = " + ethers.utils.formatEther(balanceAfter));
+        const tokenPrice = await loanContract.tokenPrice();
+        const expectedBalance = balanceBefore.sub(ETH_SENT).sub(gasCost);
+  //      console.log("expectedBalance = " + ethers.utils.formatEther(expectedBalance));
+      });
+
+      it("reduces the correct amount of tokens", async () => {
+/* 
+        const balance = await erc20Contract.balanceOf(accounts[1].address);
+        const ratio = await loanContract.tokenPrice();
+        expect(balance).to.eq(ETH_SENT.div(ratio));
+*/
+        throw new Error("Not implemented");
+      });
+  
+      it("has the correct placement", async () => {
+        throw new Error("Not implemented");
+      });
+    });
+
+    describe("When a user burns an ERC20 at the loan contract", async () => {
       let gasCost: BigNumber;
 
       beforeEach(async () => {
@@ -108,7 +135,6 @@ describe("Token Loan", async () => {
 
       it("burns the correct amount of tokens", async () => {
         const balance = await erc20Contract.balanceOf(accounts[1].address);
-        console.log("02 ", balance);
         expect(balance).to.eq(0);
       });
 

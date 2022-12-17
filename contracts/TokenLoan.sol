@@ -83,27 +83,26 @@ contract TokenLoan {
     }
 
     /**
-     * This compute investment results, according to past time
+     * This calculates investment results, according to past time
      * Interests = 0, if investement duration < PERIOD_LENGTH
+     * This pubilc function permits users to make simulations
+     * 
+     * This is called by _computResults() to determine investment results
+     * Hence end users can verify the computation
+     * 
      * @return results
      */
-    function _computeResults()
-        internal
+    function calculateResults(uint256 periods)
+        public
         view
         returns (PlacementResults memory results)
     {
-        results = PlacementResults(0, 0, 0);
-
         require(
             placements[msg.sender].amount > 0 &&
                 placements[msg.sender].startingDate > INITIALDATE
         );
-        uint256 currentDate = block.timestamp;
-        uint256 startDate = placements[msg.sender].startingDate;
-        uint256 duration = currentDate - startDate;
-        uint256 periods = duration / PERIOD_LENGTH;
 
-        results.penaltyRatio = 0;
+        results = PlacementResults(0, 0, 0);
 
         if (periods < 12) results.penaltyRatio = 1;
         if (periods < 6) results.penaltyRatio = 2;
@@ -119,6 +118,28 @@ contract TokenLoan {
         results.penalties = (results.profits * results.penaltyRatio) / 100;
     }
 
+    /**
+     * This compute investment results, according to past time
+     * Interests = 0, if investement duration < PERIOD_LENGTH
+     * @return results
+     */
+    function _computeResults()
+        internal
+        view
+        returns (PlacementResults memory results)
+    {
+        require(
+            placements[msg.sender].amount > 0 &&
+                placements[msg.sender].startingDate > INITIALDATE
+        );
+        uint256 currentDate = block.timestamp;
+        uint256 startDate = placements[msg.sender].startingDate;
+        uint256 duration = currentDate - startDate;
+        uint256 periods = duration / PERIOD_LENGTH;
+
+        return calculateResults(periods);
+    }
+    
     /**
      * This stakes (locks) tokens
      * @param _amount is the amount of tokens the caller wants to stake
