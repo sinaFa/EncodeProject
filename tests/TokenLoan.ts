@@ -4,16 +4,16 @@ import { expect } from "chai";
 import exp from "constants";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
-import { TokenYield, TokenYield__factory } from "../typechain-types";
+import { TokenLoan, TokenLoan__factory } from "../typechain-types";
 import { MyERC20, MyERC20__factory } from "../typechain-types";
 
 const INTERESTS_RATIO = 12;
 const FEES_RATIO = 5;
-const NFT_PRICE = ethers.utils.parseEther("0.2");
+const TOKEN_PRICE = ethers.utils.parseEther("0.2");
 
 describe("Token Loan", async () => {
   let accounts: SignerWithAddress[];
-  let yieldContract: TokenYield;
+  let loanContract: TokenLoan;
   let erc20Contract: MyERC20;
 
   beforeEach(async function () {
@@ -23,23 +23,23 @@ describe("Token Loan", async () => {
     erc20Contract = await myerc20Factory.deploy() as MyERC20;
     await erc20Contract.deployed();
 
-    const yieldFactory = new TokenYield__factory(accounts[0]);
-    yieldContract = await yieldFactory.deploy(INTERESTS_RATIO, FEES_RATIO, NFT_PRICE, erc20Contract.address) as TokenYield;
-    await yieldContract.deployed();
+    const loanFactory = new TokenLoan__factory(accounts[0]);
+    loanContract = await loanFactory.deploy(INTERESTS_RATIO, FEES_RATIO, TOKEN_PRICE, erc20Contract.address) as TokenLoan;
+    await loanContract.deployed();
 
     const MINTERROLE = await erc20Contract.MINTER_ROLE();
-    const giveRoleTx = await erc20Contract.grantRole(MINTERROLE, yieldContract.address);
+    const giveRoleTx = await erc20Contract.grantRole(MINTERROLE, loanContract.address);
     await giveRoleTx.wait();
   });
 
-  describe("When the Yield contract is deployed", async () => {
+  describe("When the loan contract is deployed", async () => {
     it("defines the ratio as provided in parameters", async () => {
-      const ratio = await yieldContract.interestsRatio();
+      const ratio = await loanContract.interestsRatio();
       expect(ratio).to.eq(INTERESTS_RATIO);
     });
 
     it("uses a valid ERC20 as payment token", async () => {
-      const erc20Tokenaddress = await yieldContract.placementToken();
+      const erc20Tokenaddress = await loanContract.placementToken();
       const myerc20Factory = new MyERC20__factory(accounts[0]);
       const erc20TokenContract = myerc20Factory.attach(erc20Tokenaddress);
       await expect(erc20TokenContract.totalSupply()).not.to.be.reverted;
@@ -55,24 +55,33 @@ describe("Token Loan", async () => {
 
     beforeEach(async () => {
       balanceBefore = await accounts[1].getBalance();
-      const tx = await yieldContract.connect(accounts[1]).purchaseTokens({ value: ETH_SENT });
+      //console.log(`balanceBefore = ${balanceBefore}`);
+      const tx = await loanContract.connect(accounts[1]).purchaseTokens({ value: ETH_SENT });
       const txReceipt = await tx.wait();
       const gasUsage = txReceipt.gasUsed;
       const gasPrice = txReceipt.effectiveGasPrice;
       gasCost = gasUsage.mul(gasPrice);
+/*      console.log(`gasUsage = ${gasUsage}`);
+      console.log(`gasPrice = ${gasPrice}`);
+      console.log(`gasCost = ${gasCost}`);
+      */
       balanceAfter = await accounts[1].getBalance();
+      //console.log(`balanceAfter = ${balanceAfter}`);
     });
 
     it("charges the correct amount of ETH", async () => {
-
-      const ratio = await yieldContract.ratio();
-      const expectedBalance = balanceBefore.sub(ETH_SENT.div(ratio)).sub(gasCost);
+      const tokenPrice = await loanContract.tokenPrice();
+      console.log(`tokenPrice = ${tokenPrice}`);
+      console.log(`balanceBefore = ${balanceBefore}`);
+      console.log(`ETH_SENT   = ${ETH_SENT}`);
+      console.log(`tokenPrice = ${tokenPrice}`);
+      const expectedBalance = balanceBefore.sub(ETH_SENT.div(tokenPrice)).sub(gasCost);
       expect(balanceAfter).to.eq(expectedBalance);
     });
 
     it("gives the correct amount of tokens", async () => {
       const balance = await erc20Contract.balanceOf(accounts[1].address);
-      const ratio = await yieldContract.ratio();
+      const ratio = await loanContract.tokenPrice();
       expect(balance).to.eq(ETH_SENT.div(ratio));
     });
 
@@ -81,11 +90,11 @@ describe("Token Loan", async () => {
       let gasCost: BigNumber;
 
       beforeEach(async () => {
-        const ratio = await yieldContract.ratio();
+        const ratio = await loanContract.tokenPrice();
         const total = ETH_SENT.div(ratio);
-        const allowTx = await erc20Contract.connect(accounts[1]).approve(yieldContract.address, total);
+        const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, total);
         const receiptAllow = await allowTx.wait();
-        const burnTx = await yieldContract.connect(accounts[1]).burnTokens(total);
+        const burnTx = await loanContract.connect(accounts[1]).burnTokens(total);
         const receiptBurn = await burnTx.wait();
         gasCost = receiptAllow.gasUsed.mul(receiptAllow.effectiveGasPrice).add(receiptBurn.gasUsed.mul(receiptBurn.effectiveGasPrice));
       });
@@ -103,54 +112,6 @@ describe("Token Loan", async () => {
         expect(balance).to.eq(0);
       });
 
-    });
-
-    describe("When a user purchase a NFT from the Shop contract", async () => {
-      const NFT_ID = 42;
-      let tokenBalanceBefore : BigNumber;
-
-      beforeEach (async () => {
-        tokenBalanceBefore = await erc20Contract.balanceOf(accounts[1].address);
-        const allowTx = await erc20Contract.connect(accounts[1]).approve(yieldContract.address, NFT_PRICE);
-        const receiptAllow = await allowTx.wait();
-        const purchaseTx = await yieldContract.connect(accounts[1]).purchaseNFT(NFT_ID);
-        await purchaseTx.wait();
-      })
-
-      it("charges the correct amount of token", async () => {
-        const tokenBalanceAfter = await erc20Contract.balanceOf(accounts[1].address);
-        const expectedTokenBalanceAfter = tokenBalanceBefore.sub(NFT_PRICE);
-        expect(tokenBalanceAfter).to.eq(expectedTokenBalanceAfter);
-      });
-
-      it("gives the right NFT", async () => {
-        //contract MyToken is ERC721, AccessControl, ERC721Burnable {
-        let contractInterface = nftContract.interface;
-        console.log(contractInterface);
-                 throw new Error("Not implemented");
-      });
-
-      it("updates the owner account correctly", async () => {
-        const effectiveOwner = await nftContract.ownerOf(NFT_ID);
-        expect(effectiveOwner).to.eq(accounts[1].address);
-      });
-
-      it("update the pool account correctly", async () => {
-        throw new Error("Not implemented");
-      });
-
-      it("favors the pool with the rounding", async () => {
-        throw new Error("Not implemented");
-      });
-    });
-
-    describe("When a user burns their NFT at the Shop contract", async () => {
-      it("gives the correct amount of ERC20 tokens", async () => {
-        throw new Error("Not implemented");
-      });
-      it("updates the pool correctly", async () => {
-        throw new Error("Not implemented");
-      });
     });
 
     describe("When the owner withdraw from the Shop contract", async () => {
