@@ -60,6 +60,7 @@ contract TokenLoan {
     uint256 public tokenPrice;
     IMyERC20Token public placementToken;
     mapping(address => Placement) public placements;
+    mapping(address => bool) public users;
     address owner;
 
     constructor(
@@ -76,10 +77,12 @@ contract TokenLoan {
     }
 
     function purchaseTokens() external payable {
+        users[msg.sender] = true;
         placementToken.mint(msg.sender, msg.value / tokenPrice);
     }
 
     function burnTokens(uint256 amount) external {
+        require(users[msg.sender] == true);
         placementToken.burnFrom(msg.sender, amount);
         payable(msg.sender).transfer(amount * tokenPrice);
     }
