@@ -12,17 +12,17 @@ const FEES_RATIO = 5;
 const TOKEN_PRICE = ethers.utils.parseEther("0.2");
 
 interface IPlacement {
-  startingDate : BigNumber;
-  amount       : BigNumber;
+  startingDate: BigNumber;
+  amount: BigNumber;
 }
-let placement : IPlacement;
+let placement: IPlacement;
 
 interface IPlacementResults {
-  profits      : BigNumber;
-  penaltyRatio : BigNumber;
-  penalties    : BigNumber;
+  profits: BigNumber;
+  penaltyRatio: BigNumber;
+  penalties: BigNumber;
 }
-let placementResults : IPlacementResults;
+let placementResults: IPlacementResults;
 
 describe("Token Loan", async () => {
   let accounts: SignerWithAddress[];
@@ -70,7 +70,7 @@ describe("Token Loan", async () => {
 
     beforeEach(async () => {
       balanceBefore = await accounts[1].getBalance();
-//      console.log("balanceBefore = " + ethers.utils.formatEther(balanceBefore));
+      //      console.log("balanceBefore = " + ethers.utils.formatEther(balanceBefore));
       const tx = await loanContract.connect(accounts[1]).purchaseTokens({ value: ETH_SENT });
       const txReceipt = await tx.wait();
       const gasUsage = txReceipt.gasUsed;
@@ -78,10 +78,10 @@ describe("Token Loan", async () => {
       gasCost = gasUsage.mul(gasPrice);
       balanceAfter = await accounts[1].getBalance();
 
-//      console.log("balanceAfter = " + ethers.utils.formatEther(balanceAfter));
+      //      console.log("balanceAfter = " + ethers.utils.formatEther(balanceAfter));
       const tokenPrice = await loanContract.tokenPrice();
       const expectedBalance = balanceBefore.sub(ETH_SENT).sub(gasCost);
-//      console.log("expectedBalance = " + ethers.utils.formatEther(expectedBalance));
+      //      console.log("expectedBalance = " + ethers.utils.formatEther(expectedBalance));
     });
 
     it("charges the correct amount of ETH", async () => {
@@ -98,9 +98,9 @@ describe("Token Loan", async () => {
 
     describe("When the user stake some tokens", async () => {
 
-      let initialAmountOfTokens : BigNumber;
-      let initialSmartContractTokenBalance : BigNumber;
-      let startingDate          : Number;
+      let initialAmountOfTokens: BigNumber;
+      let initialSmartContractTokenBalance: BigNumber;
+      let startingDate: Number;
 
       beforeEach(async () => {
         initialAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
@@ -139,8 +139,8 @@ describe("Token Loan", async () => {
       });
 
       it("can check one month profits", async () => {
-// profits = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / 100 / PERIODS_PER_YEAR * 1_000_000;
-// penalties = profits * penaltyRatio / 100 * 1_000_000
+        // profits = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / 100 / PERIODS_PER_YEAR * 1_000_000;
+        // penalties = profits * penaltyRatio / 100 * 1_000_000
         const PERIODS = 2;
         const EXPECTED_PENALTY_RATIO = 5;
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
@@ -176,10 +176,26 @@ describe("Token Loan", async () => {
         expect(placementResults.profits).to.eq(profits);
         expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
+
+      describe("When the user unstake some tokens", async () => {
+        let currentAmountOfTokens: BigNumber;
+        let currentSmartContractTokenBalance: BigNumber;
   
-      it("can unstake tokens", async () => {
-        throw new Error("Not implemented");
-      });
+        beforeEach(async () => {
+          currentAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
+          currentSmartContractTokenBalance = await erc20Contract.balanceOf(loanContract.address);
+
+          const tx = await loanContract.connect(accounts[1]).unstakeTokens(STAKE_TOKENS);
+          const txReceipt = await tx.wait();
+        });
+
+        it("retreives his/her tokens, plus some potential interests", async () => {
+          throw new Error("Not implemented");
+        });
+        it("reduces smart contract balance of token, and adds some potentiel penalties", async () => {
+          throw new Error("Not implemented");
+        });
+      })
     });
 
     describe("When a user burns an ERC20 at the loan contract", async () => {
