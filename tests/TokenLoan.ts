@@ -11,6 +11,12 @@ const INTERESTS_RATIO = 12;
 const FEES_RATIO = 5;
 const TOKEN_PRICE = ethers.utils.parseEther("0.2");
 
+interface IPlacement {
+  startingDate : BigNumber;
+  amount       : BigNumber;
+}
+let placement : IPlacement;
+
 describe("Token Loan", async () => {
   let accounts: SignerWithAddress[];
   let loanContract: TokenLoan;
@@ -84,27 +90,35 @@ describe("Token Loan", async () => {
 
     describe("When the user stake some tokens", async () => {
 
-      let initialAmountOfTokens: BigNumber;
+      let initialAmountOfTokens : BigNumber;
+      let startingDate          : Number;
 
       beforeEach(async () => {
         initialAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
-        console.log(`initialAmountOfTokens = ${initialAmountOfTokens}`);
-        console.log(`STAKE_TOKENS = ${STAKE_TOKENS}`);
 
         const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS);
         const receiptAllow = await allowTx.wait();
 
         const tx = await loanContract.connect(accounts[1]).stakeTokens(STAKE_TOKENS);
         const txReceipt = await tx.wait();
+
+        const blockNum = await ethers.provider.getBlockNumber();
+        const block = await ethers.provider.getBlock(blockNum);
+        startingDate = block.timestamp;
       });
 
       it("reduces the correct amount of tokens", async () => {
         const currentAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
         expect(currentAmountOfTokens).to.eq(initialAmountOfTokens.sub(STAKE_TOKENS));
-        });
+      });
   
+
       it("has the correct placement", async () => {
-        throw new Error("Not implemented");
+        const ratio = await loanContract.tokenPrice();
+        placement = await loanContract.connect(accounts[1]).placements(accounts[1].address);
+        console.log(`startinDate = ${placement.startingDate}, amount = ${placement.amount}`)
+        expect(placement.startingDate).to.eq(startingDate);
+        expect(placement.amount).to.eq(STAKE_TOKENS);
       });
 
       it("can check one month interests", async () => {
