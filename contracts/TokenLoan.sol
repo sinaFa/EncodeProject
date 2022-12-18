@@ -22,13 +22,14 @@ struct Placement {
 }
 
 /**
- * PlacementResults is made of yields and penalties
+ * PlacementResults is made of interests and penalties
  */
 struct PlacementResults {
     /**
      * This is effective profits, independant of any penalty, calulated from
      * (1) the ratio of the contract
      * (2) the placement duration
+     * This must be divided by 1_000_000
      */
     uint256 profits;
     /**
@@ -39,6 +40,7 @@ struct PlacementResults {
     /**
      * This is the penalties = yields * penaltyRatio / 100;
      * This must be substracted from profits
+     * This must be divided by 1_000_000
      */
     uint256 penalties;
 }
@@ -119,16 +121,16 @@ contract TokenLoan {
 
         results = PlacementResults(0, 0, 0);
 
-        if (periods < 12) results.penaltyRatio = 1;
-        if (periods < 6) results.penaltyRatio = 2;
-        if (periods < 3) results.penaltyRatio = 3;
-        if (periods < 2) results.penaltyRatio = 5;
+        if (periods <= 24) results.penaltyRatio = 1;
+        if (periods <= 12) results.penaltyRatio = 2;
+        if (periods <= 6) results.penaltyRatio = 3;
+        if (periods <= 2) results.penaltyRatio = 5;
 
-        results.profits =
-            ((placements[msg.sender].amount * periods * interestsRatio) / 100) /
+        results.profits = 
+            1_000_000 * placements[msg.sender].amount * periods * interestsRatio / 100 /
             PERIODS_PER_YEAR;
 
-        if (periods < 1) results.profits = 0;
+        if (periods < 2) results.profits = 0;
 
         results.penalties = (results.profits * results.penaltyRatio) / 100;
     }

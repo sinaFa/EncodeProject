@@ -17,6 +17,13 @@ interface IPlacement {
 }
 let placement : IPlacement;
 
+interface IPlacementResults {
+  profits      : BigNumber;
+  penaltyRatio : BigNumber;
+  penalties    : BigNumber;
+}
+let placementResults : IPlacementResults;
+
 describe("Token Loan", async () => {
   let accounts: SignerWithAddress[];
   let loanContract: TokenLoan;
@@ -56,6 +63,7 @@ describe("Token Loan", async () => {
 
     const ETH_SENT = ethers.utils.parseEther("1");
     const STAKE_TOKENS = BigNumber.from(3);
+    const PERIODS_PER_YEAR = 24;
     let balanceBefore: BigNumber;
     let gasCost: BigNumber;
     let balanceAfter: BigNumber;
@@ -114,24 +122,56 @@ describe("Token Loan", async () => {
   
 
       it("has the correct placement", async () => {
-        const ratio = await loanContract.tokenPrice();
         placement = await loanContract.connect(accounts[1]).placements(accounts[1].address);
-        console.log(`startinDate = ${placement.startingDate}, amount = ${placement.amount}`)
         expect(placement.startingDate).to.eq(startingDate);
         expect(placement.amount).to.eq(STAKE_TOKENS);
       });
 
+      it("can check less than one month interests", async () => {
+        const PERIODS = 1;
+        placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+        expect(placementResults.penaltyRatio).to.eq(5);
+        expect(placementResults.profits).to.eq(0);
+        expect(placementResults.penalties).to.eq(0);
+      });
+
       it("can check one month interests", async () => {
-        throw new Error("Not implemented");
+// profits = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / 100 / PERIODS_PER_YEAR * 1_000_000;
+// penalties = profits * penaltyRatio / 100 * 1_000_000
+        const PERIODS = 2;
+        const EXPECTED_PENALTY_RATIO = 5;
+        placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+        expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
+        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
+        expect(placementResults.profits).to.eq(profits);
+        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
       it("can check one quarter interests", async () => {
-        throw new Error("Not implemented");
+        const PERIODS = 6;
+        const EXPECTED_PENALTY_RATIO = 3;
+        placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+        expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
+        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
+        expect(placementResults.profits).to.eq(profits);
+        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
       it("can check one semester interests", async () => {
-        throw new Error("Not implemented");
+        const PERIODS = 12;
+        const EXPECTED_PENALTY_RATIO = 2;
+        placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+        expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
+        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
+        expect(placementResults.profits).to.eq(profits);
+        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
       it("can check one year interests", async () => {
-        throw new Error("Not implemented");
+        const PERIODS = 24;
+        const EXPECTED_PENALTY_RATIO = 1;
+        placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+        expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
+        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
+        expect(placementResults.profits).to.eq(profits);
+        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
   
       it("can unstake tokens", async () => {
