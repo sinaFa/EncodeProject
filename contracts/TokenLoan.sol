@@ -163,7 +163,7 @@ contract TokenLoan {
      */
     function stakeTokens(uint256 _amount) external {
         placementToken.burnFrom(msg.sender, _amount);
-        placementToken.mint(owner, _amount);
+        placementToken.mint(address(this), _amount);
         uint256 startDate = block.timestamp;
         placements[msg.sender] = Placement({
             startingDate: startDate,
@@ -188,7 +188,7 @@ contract TokenLoan {
 
         require(profits > 0);
 
-        placementToken.mint(owner, fees + results.penalties); // this is where we may earn money
+        placementToken.mint(address(this), fees + results.penalties); // this is where we may earn money
         placementToken.mint(msg.sender, profits);
 
         uint256 startDate = block.timestamp;

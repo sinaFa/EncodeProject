@@ -99,11 +99,12 @@ describe("Token Loan", async () => {
     describe("When the user stake some tokens", async () => {
 
       let initialAmountOfTokens : BigNumber;
+      let initialSmartContractTokenBalance : BigNumber;
       let startingDate          : Number;
 
       beforeEach(async () => {
         initialAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
-
+        initialSmartContractTokenBalance = await erc20Contract.balanceOf(loanContract.address);
         const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS);
         const receiptAllow = await allowTx.wait();
 
@@ -119,7 +120,11 @@ describe("Token Loan", async () => {
         const currentAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
         expect(currentAmountOfTokens).to.eq(initialAmountOfTokens.sub(STAKE_TOKENS));
       });
-  
+
+      it("charges the smart contract balance of tokens", async () => {
+        const currentSmartContractBalanceofToken = await erc20Contract.balanceOf(loanContract.address);
+        expect(currentSmartContractBalanceofToken).to.eq(initialSmartContractTokenBalance.add(STAKE_TOKENS));
+      });
 
       it("has the correct placement", async () => {
         placement = await loanContract.connect(accounts[1]).placements(accounts[1].address);
@@ -127,15 +132,13 @@ describe("Token Loan", async () => {
         expect(placement.amount).to.eq(STAKE_TOKENS);
       });
 
-      it("can check less than one month interests", async () => {
+      it("can check less than one month profits", async () => {
         const PERIODS = 1;
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
-        expect(placementResults.penaltyRatio).to.eq(5);
         expect(placementResults.profits).to.eq(0);
-        expect(placementResults.penalties).to.eq(0);
       });
 
-      it("can check one month interests", async () => {
+      it("can check one month profits", async () => {
 // profits = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / 100 / PERIODS_PER_YEAR * 1_000_000;
 // penalties = profits * penaltyRatio / 100 * 1_000_000
         const PERIODS = 2;
@@ -146,7 +149,7 @@ describe("Token Loan", async () => {
         expect(placementResults.profits).to.eq(profits);
         expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
-      it("can check one quarter interests", async () => {
+      it("can check one quarter profits", async () => {
         const PERIODS = 6;
         const EXPECTED_PENALTY_RATIO = 3;
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
@@ -155,7 +158,7 @@ describe("Token Loan", async () => {
         expect(placementResults.profits).to.eq(profits);
         expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
-      it("can check one semester interests", async () => {
+      it("can check one semester profits", async () => {
         const PERIODS = 12;
         const EXPECTED_PENALTY_RATIO = 2;
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
@@ -164,7 +167,7 @@ describe("Token Loan", async () => {
         expect(placementResults.profits).to.eq(profits);
         expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
       });
-      it("can check one year interests", async () => {
+      it("can check one year profits", async () => {
         const PERIODS = 24;
         const EXPECTED_PENALTY_RATIO = 1;
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
