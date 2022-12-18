@@ -3,11 +3,8 @@ pragma solidity ^0.8.9;
 
 interface IMyERC20Token {
     function mint(address to, uint256 amount) external;
-
     function burnFrom(address to, uint256 amount) external;
-
-    function transferFrom(address from, address to, uint256 amount) external;
-
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function balanceOf(address account) external returns (uint256);
 }
 
@@ -191,14 +188,14 @@ contract TokenLoan {
 
         require(profits > 0);
 
-        placementToken.mint(address(this), fees + results.penalties); // this is where we may earn money
-        placementToken.mint(msg.sender, profits);
-
         uint256 startDate = block.timestamp;
         uint256 remaining = placements[msg.sender].amount - _amount;
         placements[msg.sender] = Placement({
             startingDate: startDate,
             amount: remaining
         });
+
+        placementToken.mint(address(this), fees + results.penalties); // this is where we may earn money
+        placementToken.mint(msg.sender, profits);
     }
 }

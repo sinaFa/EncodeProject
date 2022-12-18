@@ -61,9 +61,12 @@ slither contracts/TokenLoan.sol --print contract-summary --truffle-ignore-compil
 ```
 ### Security audit
 
-We don't describe everything here. But let see an example.
+We don't describe everything here. But let see some examples.
 
-The first run gave
+Slither gave one high severity and two medium severity advices. 
+We did not took time to solve low severity advices.
+
+1. a hight severity warning regarding arbitrary users
 ```
 slither contracts/TokenLoan.sol
 
@@ -100,6 +103,76 @@ function burnTokens(uint256 amount) external {
     payable(msg.sender).transfer(amount * tokenPrice);
 }
 
+```
+
+2. a medium severity warning regarding ERC20 incorrect interface
+```
+IMyERC20Token (contracts/TokenLoan.sol#4-12) has incorrect ERC20 function interface:IMyERC20Token.transferFrom(address,address,uint256) (contracts/TokenLoan.sol#9)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#incorrect-erc20-interface
+```
+
+This was due to the fact that our interface did not defined the return statement
+ ```
+interface IMyERC20Token {
+...
+    function transferFrom(address from, address to, uint256 amount) external;
+...
+}
+```
+
+We corrected like this and the error disapeared
+```
+interface IMyERC20Token {
+...
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+...
+}
+```
+
+3. a medium severity warning regarding reentrancy vulnerabilities
+```
+Reentrancy in TokenLoan.unstakeTokens(uint256) (contracts/TokenLoan.sol#180-200):
+	External calls:
+	- placementToken.mint(address(this),fees + results.penalties) (contracts/TokenLoan.sol#191)
+	- placementToken.mint(msg.sender,profits) (contracts/TokenLoan.sol#192)
+	State variables written after the call(s):
+	- placements[msg.sender] = Placement(startDate,remaining) (contracts/TokenLoan.sol#196-199)
+Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-1
+```
+
+This was due to the fact that our method wrote state variables after the calls
+ ```
+   function unstakeTokens(uint256 _amount) external {
+        require(placements[msg.sender].amount - _amount > 0);
+
+...
+
+        placementToken.mint(address(this), fees + results.penalties); // this is where we may earn money
+        placementToken.mint(msg.sender, profits);
+
+        placements[msg.sender] = Placement({
+            startingDate: startDate,
+            amount: remaining
+        });
+
+    }
+```
+
+We applied the check-effects-interactions pattern.
+ ```
+   function unstakeTokens(uint256 _amount) external {
+        require(placements[msg.sender].amount - _amount > 0);
+
+...
+
+        placements[msg.sender] = Placement({
+            startingDate: startDate,
+            amount: remaining
+        });
+
+        placementToken.mint(address(this), fees + results.penalties); // this is where we may earn money
+        placementToken.mint(msg.sender, profits);
+    }
 ```
 
 
