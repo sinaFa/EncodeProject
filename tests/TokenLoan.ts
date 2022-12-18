@@ -49,6 +49,7 @@ describe("Token Loan", async () => {
   describe("When a user purchase an ERC20 from the loan contract", async () => {
 
     const ETH_SENT = ethers.utils.parseEther("1");
+    const STAKE_TOKENS = BigNumber.from(3);
     let balanceBefore: BigNumber;
     let gasCost: BigNumber;
     let balanceAfter: BigNumber;
@@ -83,32 +84,43 @@ describe("Token Loan", async () => {
 
     describe("When the user stake some tokens", async () => {
 
+      let initialAmountOfTokens: BigNumber;
+
       beforeEach(async () => {
-        balanceBefore = await accounts[1].getBalance();
-  //      console.log("balanceBefore = " + ethers.utils.formatEther(balanceBefore));
-        const tx = await loanContract.connect(accounts[1]).purchaseTokens({ value: ETH_SENT });
+        initialAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
+        console.log(`initialAmountOfTokens = ${initialAmountOfTokens}`);
+        console.log(`STAKE_TOKENS = ${STAKE_TOKENS}`);
+
+        const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS);
+        const receiptAllow = await allowTx.wait();
+
+        const tx = await loanContract.connect(accounts[1]).stakeTokens(STAKE_TOKENS);
         const txReceipt = await tx.wait();
-        const gasUsage = txReceipt.gasUsed;
-        const gasPrice = txReceipt.effectiveGasPrice;
-        gasCost = gasUsage.mul(gasPrice);
-        balanceAfter = await accounts[1].getBalance();
-  
-  //      console.log("balanceAfter = " + ethers.utils.formatEther(balanceAfter));
-        const tokenPrice = await loanContract.tokenPrice();
-        const expectedBalance = balanceBefore.sub(ETH_SENT).sub(gasCost);
-  //      console.log("expectedBalance = " + ethers.utils.formatEther(expectedBalance));
       });
 
       it("reduces the correct amount of tokens", async () => {
-/* 
-        const balance = await erc20Contract.balanceOf(accounts[1].address);
-        const ratio = await loanContract.tokenPrice();
-        expect(balance).to.eq(ETH_SENT.div(ratio));
-*/
+        const currentAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
+        expect(currentAmountOfTokens).to.eq(initialAmountOfTokens.sub(STAKE_TOKENS));
+        });
+  
+      it("has the correct placement", async () => {
+        throw new Error("Not implemented");
+      });
+
+      it("can check one month interests", async () => {
+        throw new Error("Not implemented");
+      });
+      it("can check one quarter interests", async () => {
+        throw new Error("Not implemented");
+      });
+      it("can check one semester interests", async () => {
+        throw new Error("Not implemented");
+      });
+      it("can check one year interests", async () => {
         throw new Error("Not implemented");
       });
   
-      it("has the correct placement", async () => {
+      it("can unstake tokens", async () => {
         throw new Error("Not implemented");
       });
     });

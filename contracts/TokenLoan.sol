@@ -82,6 +82,21 @@ contract TokenLoan {
         payable(msg.sender).transfer(amount * tokenPrice);
     }
 
+    function getStartDate()
+        public
+        view
+        returns (uint256 startDate) {
+        
+        startDate = placements[msg.sender].startingDate;
+    }
+    function getStakedAmount()
+        public
+        view
+        returns (uint256 startDate) {
+        
+        startDate = placements[msg.sender].amount;
+    }
+    
     /**
      * This calculates investment results, according to past time
      * Interests = 0, if investement duration < PERIOD_LENGTH
