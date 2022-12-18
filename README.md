@@ -75,7 +75,11 @@ Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#functio
 
 This was due to the fact we did not check who we were sending Eth to
  ```
- function burnTokens(uint256 amount) external {
+function purchaseTokens() external payable {
+    placementToken.mint(msg.sender, msg.value / tokenPrice);
+}
+
+function burnTokens(uint256 amount) external {
     placementToken.burnFrom(msg.sender, amount);
     payable(msg.sender).transfer(amount * tokenPrice);
 }
@@ -84,6 +88,11 @@ This was due to the fact we did not check who we were sending Eth to
 We corrected like this and the error disapeared
 ```
 mapping(address => bool) public users;
+
+function purchaseTokens() external payable {
+    users[msg.sender] = true;
+    placementToken.mint(msg.sender, msg.value / tokenPrice);
+}
 
 function burnTokens(uint256 amount) external {
     require(users[msg.sender] == true);
