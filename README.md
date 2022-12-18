@@ -61,8 +61,6 @@ slither contracts/TokenLoan.sol --print contract-summary --truffle-ignore-compil
 ```
 ### Security audit
 
-We don't describe everything here. But let see some examples.
-
 Slither gave one high severity and two medium severity advices. 
 We did not took time to solve low severity advices.
 
