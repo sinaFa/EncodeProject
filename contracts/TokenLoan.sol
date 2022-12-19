@@ -160,8 +160,10 @@ contract TokenLoan {
      * @param _amount is the amount of tokens the caller wants to stake
      */
     function stakeTokens(uint256 _amount) external {
-        placementToken.burnFrom(msg.sender, _amount);
-        placementToken.mint(address(this), _amount);
+
+        bool sent = placementToken.transferFrom(msg.sender, address(this), _amount);
+        require(sent, "stake error");
+
         uint256 startDate = block.timestamp;
         placements[msg.sender] = Placement({
             startingDate: startDate,
@@ -176,15 +178,16 @@ contract TokenLoan {
      * @param _amount is the amount of tokens the caller wants to unstake
      */
     function unstakeTokens(uint256 _amount) external {
-        require(placements[msg.sender].amount - _amount > 0);
+        require(placements[msg.sender].amount - _amount >= 0, "not enough staked tokens");
 
         PlacementResults memory results = _computeResults();
 
         // fees are calculated on results, before penalties
+        // this is where we earn money
         uint256 fees = (results.profits * feesRatio) / 100;
-        uint256 profits = _amount + results.profits - fees - results.penalties;
+        uint256 profits = results.profits - fees - results.penalties;
 
-        require(profits > 0);
+        require(profits > 0, "profits are negatif ??");
 
         uint256 startDate = block.timestamp;
         uint256 remaining = placements[msg.sender].amount - _amount;
@@ -193,8 +196,7 @@ contract TokenLoan {
             amount: remaining
         });
 
-        placementToken.burnFrom(address(this), _amount);
-        placementToken.mint(address(this), fees + results.penalties); // this is where we may earn money
-        placementToken.mint(msg.sender, profits);
+        bool sent = placementToken.transferFrom(address(this), msg.sender, _amount + profits);
+        require(sent, "unstake error");
     }
 }

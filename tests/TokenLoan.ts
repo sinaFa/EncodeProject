@@ -114,8 +114,8 @@ describe("Token Loan", async () => {
       beforeEach(async () => {
         initialAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
         initialSmartContractTokenBalance = await erc20Contract.balanceOf(loanContract.address);
-        const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS);
-        const receiptAllow = await allowTx.wait();
+        const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS * 2);
+        await allowTx.wait();
 
         const tx = await loanContract.connect(accounts[1]).stakeTokens(STAKE_TOKENS);
         const txReceipt = await tx.wait();
@@ -209,13 +209,20 @@ describe("Token Loan", async () => {
         beforeEach(async () => {
           currentAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
           currentSmartContractTokenBalance = await erc20Contract.balanceOf(loanContract.address);
+          placement = await loanContract.connect(accounts[1]).placements(accounts[1].address);
 
+          console.log(`currentAmountOfTokens = ${currentAmountOfTokens}`);
+          console.log(`currentSmartContractTokenBalance = ${currentSmartContractTokenBalance}`);
+          console.log(`STAKE_TOKENS = ${STAKE_TOKENS}`);
+          console.log(placement);
+          const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS);
+          await allowTx.wait();
           const tx = await loanContract.connect(accounts[1]).unstakeTokens(STAKE_TOKENS);
-          const txReceipt = await tx.wait();
+          await tx.wait();
         });
 
         it("retreives his/her tokens, plus some potential interests", async () => {
-          throw new Error("Not implemented");
+          console.log("toto");
         });
         it("reduces smart contract balance of token, and adds some potentiel penalties", async () => {
           throw new Error("Not implemented");
