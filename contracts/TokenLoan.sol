@@ -196,7 +196,7 @@ contract TokenLoan {
             amount: remaining
         });
 
-        bool sent = placementToken.transferFrom(address(this), msg.sender, _amount + profits);
-        require(sent, "unstake error");
+        placementToken.mint(msg.sender, _amount + profits);
+//        placementToken.burnFrom(address(this), _amount);
     }
 }
