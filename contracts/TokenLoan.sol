@@ -187,7 +187,7 @@ contract TokenLoan {
         uint256 fees = (results.profits * feesRatio) / 100;
         uint256 profits = results.profits - fees - results.penalties;
 
-        require(profits > 0, "profits are negatif ??");
+        require(profits >= 0, "profits can't be negatif");
 
         uint256 startDate = block.timestamp;
         uint256 remaining = placements[msg.sender].amount - _amount;
