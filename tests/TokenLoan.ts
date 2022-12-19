@@ -9,7 +9,8 @@ import { MyERC20, MyERC20__factory } from "../typechain-types";
 
 const INTERESTS_RATIO = 12;
 const FEES_RATIO = 5;
-const TOKEN_PRICE = ethers.utils.parseEther("0.2");
+const TOKEN_PRICE = 0.2;
+//const TOKEN_PRICE = ethers.utils.parseEther("0.2");
 
 interface IPlacement {
   startingDate: BigNumber;
@@ -37,7 +38,15 @@ describe("Token Loan", async () => {
     await erc20Contract.deployed();
 
     const loanFactory = new TokenLoan__factory(accounts[0]);
-    loanContract = await loanFactory.deploy(INTERESTS_RATIO, FEES_RATIO, TOKEN_PRICE, erc20Contract.address) as TokenLoan;
+    //    ethers.utils.parseEther(BET_FEE.toFixed(18))
+
+    loanContract = await loanFactory.deploy(
+      ethers.utils.parseEther(INTERESTS_RATIO.toFixed(18)), 
+      ethers.utils.parseEther(FEES_RATIO.toFixed(18)), 
+      ethers.utils.parseEther(TOKEN_PRICE.toFixed(18)), 
+      erc20Contract.address
+    ) as TokenLoan;
+
     await loanContract.deployed();
 
     const MINTERROLE = await erc20Contract.MINTER_ROLE();
@@ -48,7 +57,7 @@ describe("Token Loan", async () => {
   describe("When the loan contract is deployed", async () => {
     it("defines the ratio as provided in parameters", async () => {
       const ratio = await loanContract.interestsRatio();
-      expect(ratio).to.eq(INTERESTS_RATIO);
+      expect(ratio).to.eq(ethers.utils.parseEther(INTERESTS_RATIO.toString()));
     });
 
     it("uses a valid ERC20 as payment token", async () => {
@@ -62,7 +71,7 @@ describe("Token Loan", async () => {
   describe("When a user purchase an ERC20 from the loan contract", async () => {
 
     const ETH_SENT = ethers.utils.parseEther("1");
-    const STAKE_TOKENS = BigNumber.from(3);
+    const STAKE_TOKENS = 3;
     const PERIODS_PER_YEAR = 24;
     let balanceBefore: BigNumber;
     let gasCost: BigNumber;
@@ -132,6 +141,9 @@ describe("Token Loan", async () => {
         expect(placement.amount).to.eq(STAKE_TOKENS);
       });
 
+      // profits = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / 100 / PERIODS_PER_YEAR
+      // penalties = profits * penaltyRatio / 100 
+
       it("can check less than one month profits", async () => {
         const PERIODS = 1;
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
@@ -139,48 +151,61 @@ describe("Token Loan", async () => {
       });
 
       it("can check one month profits", async () => {
-        // profits = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / 100 / PERIODS_PER_YEAR * 1_000_000;
-        // penalties = profits * penaltyRatio / 100 * 1_000_000
         const PERIODS = 2;
         const EXPECTED_PENALTY_RATIO = 5;
+        const EXPECTED_PROFITS = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / (100 * PERIODS_PER_YEAR);
+        const EXPECTED_PENALTIES = EXPECTED_PROFITS * EXPECTED_PENALTY_RATIO / 100;
+
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+
         expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
-        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
-        expect(placementResults.profits).to.eq(profits);
-        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
+        expect(placementResults.profits).to.eq(ethers.utils.parseEther(EXPECTED_PROFITS.toString()));
+        expect(placementResults.penalties).to.eq(ethers.utils.parseEther(EXPECTED_PENALTIES.toString()));
       });
+
       it("can check one quarter profits", async () => {
         const PERIODS = 6;
         const EXPECTED_PENALTY_RATIO = 3;
+        const EXPECTED_PROFITS = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / (100 * PERIODS_PER_YEAR);
+        const EXPECTED_PENALTIES = EXPECTED_PROFITS * EXPECTED_PENALTY_RATIO / 100;
+
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+
         expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
-        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
-        expect(placementResults.profits).to.eq(profits);
-        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
+        expect(placementResults.profits).to.eq(ethers.utils.parseEther(EXPECTED_PROFITS.toString()));
+        expect(placementResults.penalties).to.eq(ethers.utils.parseEther(EXPECTED_PENALTIES.toString()));
       });
+
       it("can check one semester profits", async () => {
         const PERIODS = 12;
         const EXPECTED_PENALTY_RATIO = 2;
+        const EXPECTED_PROFITS = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / (100 * PERIODS_PER_YEAR);
+        const EXPECTED_PENALTIES = EXPECTED_PROFITS * EXPECTED_PENALTY_RATIO / 100;
+
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+
         expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
-        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
-        expect(placementResults.profits).to.eq(profits);
-        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
+        expect(placementResults.profits).to.eq(ethers.utils.parseEther(EXPECTED_PROFITS.toString()));
+        expect(placementResults.penalties).to.eq(ethers.utils.parseEther(EXPECTED_PENALTIES.toString()));
       });
+
       it("can check one year profits", async () => {
         const PERIODS = 24;
         const EXPECTED_PENALTY_RATIO = 1;
+        const EXPECTED_PROFITS = STAKE_TOKENS * PERIODS * INTERESTS_RATIO / (100 * PERIODS_PER_YEAR);
+        const EXPECTED_PENALTIES = EXPECTED_PROFITS * EXPECTED_PENALTY_RATIO / 100;
+
         placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS);
+
         expect(placementResults.penaltyRatio).to.eq(EXPECTED_PENALTY_RATIO);
-        const profits = BigNumber.from(1000000).mul(STAKE_TOKENS).mul(PERIODS).mul(INTERESTS_RATIO).div(100).div(PERIODS_PER_YEAR);
-        expect(placementResults.profits).to.eq(profits);
-        expect(placementResults.penalties).to.eq(BigNumber.from(profits).mul(placementResults.penaltyRatio).div(100));
+        expect(placementResults.profits).to.eq(ethers.utils.parseEther(EXPECTED_PROFITS.toString()));
+        expect(placementResults.penalties).to.eq(ethers.utils.parseEther(EXPECTED_PENALTIES.toString()));
       });
 
       describe("When the user unstake some tokens", async () => {
         let currentAmountOfTokens: BigNumber;
         let currentSmartContractTokenBalance: BigNumber;
-  
+
         beforeEach(async () => {
           currentAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
           currentSmartContractTokenBalance = await erc20Contract.balanceOf(loanContract.address);

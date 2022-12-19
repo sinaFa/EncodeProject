@@ -26,7 +26,6 @@ struct PlacementResults {
      * This is effective profits, independant of any penalty, calulated from
      * (1) the ratio of the contract
      * (2) the placement duration
-     * This must be divided by 1_000_000
      */
     uint256 profits;
     /**
@@ -37,7 +36,6 @@ struct PlacementResults {
     /**
      * This is the penalties = yields * penaltyRatio / 100;
      * This must be substracted from profits
-     * This must be divided by 1_000_000
      */
     uint256 penalties;
 }
@@ -127,7 +125,7 @@ contract TokenLoan {
         if (periods <= 2) results.penaltyRatio = 5;
 
         results.profits = 
-            1_000_000 * placements[msg.sender].amount * periods * interestsRatio / 100 /
+            placements[msg.sender].amount * periods * interestsRatio / 100 /
             PERIODS_PER_YEAR;
 
         if (periods < 2) results.profits = 0;
@@ -195,6 +193,7 @@ contract TokenLoan {
             amount: remaining
         });
 
+        placementToken.burnFrom(address(this), _amount);
         placementToken.mint(address(this), fees + results.penalties); // this is where we may earn money
         placementToken.mint(msg.sender, profits);
     }
