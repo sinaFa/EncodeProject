@@ -4,12 +4,15 @@ import { expect } from "chai";
 import exp from "constants";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
+import { execPath } from "process";
 import { TokenLoan, TokenLoan__factory } from "../typechain-types";
 import { MyERC20, MyERC20__factory } from "../typechain-types";
 
 const INTERESTS_RATIO = 12;
 const FEES_RATIO = 5;
 const TOKEN_PRICE = 0.2;
+const PERIOD_LENGTH = 14 * 24 * 60 * 60; // 2 weeks
+
 //const TOKEN_PRICE = ethers.utils.parseEther("0.2");
 
 interface IPlacement {
@@ -73,29 +76,23 @@ describe("Token Loan", async () => {
     const ETH_SENT = ethers.utils.parseEther("1");
     const STAKE_TOKENS = 3;
     const PERIODS_PER_YEAR = 24;
-    let balanceBefore: BigNumber;
-    let gasCost: BigNumber;
+    let initialBalance: BigNumber;
+    let purchaseTokenGasCost: BigNumber;
     let balanceAfter: BigNumber;
 
     beforeEach(async () => {
-      balanceBefore = await accounts[1].getBalance();
+      initialBalance = await accounts[1].getBalance();
       //      console.log("balanceBefore = " + ethers.utils.formatEther(balanceBefore));
       const tx = await loanContract.connect(accounts[1]).purchaseTokens({ value: ETH_SENT });
       const txReceipt = await tx.wait();
       const gasUsage = txReceipt.gasUsed;
       const gasPrice = txReceipt.effectiveGasPrice;
-      gasCost = gasUsage.mul(gasPrice);
+      purchaseTokenGasCost = gasUsage.mul(gasPrice);
       balanceAfter = await accounts[1].getBalance();
-
-      //      console.log("balanceAfter = " + ethers.utils.formatEther(balanceAfter));
-      const tokenPrice = await loanContract.tokenPrice();
-      const expectedBalance = balanceBefore.sub(ETH_SENT).sub(gasCost);
-      //      console.log("expectedBalance = " + ethers.utils.formatEther(expectedBalance));
     });
 
     it("charges the correct amount of ETH", async () => {
-      const tokenPrice = await loanContract.tokenPrice();
-      const expectedBalance = balanceBefore.sub(ETH_SENT).sub(gasCost);
+      const expectedBalance = initialBalance.sub(ETH_SENT).sub(purchaseTokenGasCost);
       expect(balanceAfter).to.eq(expectedBalance);
     });
 
@@ -109,12 +106,12 @@ describe("Token Loan", async () => {
 
       let initialAmountOfTokens: BigNumber;
       let initialSmartContractTokenBalance: BigNumber;
-      let startingDate: Number;
+      let startingDate: number;
 
       beforeEach(async () => {
         initialAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
         initialSmartContractTokenBalance = await erc20Contract.balanceOf(loanContract.address);
-        const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS * 2);
+        const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS);
         await allowTx.wait();
 
         const tx = await loanContract.connect(accounts[1]).stakeTokens(STAKE_TOKENS);
@@ -203,51 +200,55 @@ describe("Token Loan", async () => {
       });
 
       describe("When the user unstake some tokens", async () => {
-        let currentAmountOfTokens: BigNumber;
-        let currentSmartContractTokenBalance: BigNumber;
+        let amountOfTokensBeforeUnstaking: BigNumber;
+        let smartContractTokenBalanceBeforeUnstaking: BigNumber;
 
         beforeEach(async () => {
-          currentAmountOfTokens = await erc20Contract.balanceOf(accounts[1].address);
-          currentSmartContractTokenBalance = await erc20Contract.balanceOf(loanContract.address);
+          amountOfTokensBeforeUnstaking = await erc20Contract.balanceOf(accounts[1].address);
+          smartContractTokenBalanceBeforeUnstaking = await erc20Contract.balanceOf(loanContract.address);
           placement = await loanContract.connect(accounts[1]).placements(accounts[1].address);
 
-          console.log(`currentAmountOfTokens = ${currentAmountOfTokens}`);
-          console.log(`currentSmartContractTokenBalance = ${currentSmartContractTokenBalance}`);
-          console.log(`STAKE_TOKENS = ${STAKE_TOKENS}`);
-          console.log(placement);
-          const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, STAKE_TOKENS);
-          await allowTx.wait();
+          const blockNum = await ethers.provider.getBlockNumber();
+          const block = await ethers.provider.getBlock(blockNum);
+          const currentDate = block.timestamp;
+          const PERIODS_AMOUNT = (startingDate - currentDate) / PERIOD_LENGTH;
+
+          placementResults = await loanContract.connect(accounts[1]).calculateResults(PERIODS_AMOUNT);
+  
+          const fees  = placementResults.profits.mul(FEES_RATIO).div(100);
+          const profits = placementResults.profits.sub(fees).sub(placementResults.penalties);
+
           const tx = await loanContract.connect(accounts[1]).unstakeTokens(STAKE_TOKENS);
           await tx.wait();
         });
 
         it("retreives his/her tokens, plus some potential interests", async () => {
-          console.log("toto");
+          const amountOfTokensAfterUnstaking = await erc20Contract.balanceOf(accounts[1].address);
+          const expectedAmountOfTokensAfterUnstaking = amountOfTokensBeforeUnstaking.add(STAKE_TOKENS)
+          expect(amountOfTokensAfterUnstaking).to.eq(expectedAmountOfTokensAfterUnstaking);
         });
-        it("reduces smart contract balance of token, and adds some potentiel penalties", async () => {
-          throw new Error("Not implemented");
-        });
+        
       })
     });
 
     describe("When a user burns an ERC20 at the loan contract", async () => {
-      let gasCost: BigNumber;
+      let burngasCost: BigNumber;
 
       beforeEach(async () => {
         const ratio = await loanContract.tokenPrice();
         const total = ETH_SENT.div(ratio);
         const allowTx = await erc20Contract.connect(accounts[1]).approve(loanContract.address, total);
         const receiptAllow = await allowTx.wait();
+        console.log(`burning ${total}`);
         const burnTx = await loanContract.connect(accounts[1]).burnTokens(total);
         const receiptBurn = await burnTx.wait();
-        gasCost = receiptAllow.gasUsed.mul(receiptAllow.effectiveGasPrice).add(receiptBurn.gasUsed.mul(receiptBurn.effectiveGasPrice));
+        burngasCost = receiptAllow.gasUsed.mul(receiptAllow.effectiveGasPrice).add(receiptBurn.gasUsed.mul(receiptBurn.effectiveGasPrice));
       });
 
       it("gives the correct amount of ETH", async () => {
-        const balanceAfterBurn = await accounts[1].getBalance();
-        const expectedBalance = balanceAfter.sub(gasCost).add(ETH_SENT);
-        const error = expectedBalance.sub(balanceAfterBurn);
-        expect(error).to.eq(0);
+        const currentBalance = await accounts[1].getBalance();
+        const expectedBalance = initialBalance.sub(purchaseTokenGasCost).sub(burngasCost);
+        expect(currentBalance).to.eq(expectedBalance);
       });
 
       it("burns the correct amount of tokens", async () => {
@@ -255,16 +256,6 @@ describe("Token Loan", async () => {
         expect(balance).to.eq(0);
       });
 
-    });
-
-    describe("When the owner withdraw from the Shop contract", async () => {
-      it("recovers the right amount of ERC20 tokens", async () => {
-        throw new Error("Not implemented");
-      });
-
-      it("updates the owner account correctly", async () => {
-        throw new Error("Not implemented");
-      });
     });
 
   });
