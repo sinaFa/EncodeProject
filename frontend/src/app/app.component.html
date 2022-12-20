@@ -1,0 +1,54 @@
+<div class="px-4 py-5 my-5 text-center">
+  <h1 class="display-5 fw-bold">>{{title}}</h1>
+  <p>Your wallet status {{wallet}}</p>
+  <div *ngIf="!wallet" class="col-lg-6 mx-auto">
+    <p class="lead mb-4">Hello Ballot user!</p>
+
+    <p *ngIf="lastBlockNumber"> Last block number is {{lastBlockNumber}}</p>
+
+    <p> To use this ballot, you need to connect to a wallet.</p>
+    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+      <button type="button" 
+      (click)="createWallet()"
+       class="btn btn-success btn-lg px-4 gap-3">Create wallet</button>
+       <button type="button"  disabled
+      (click)="createWallet()"
+       class="btn btn-info btn-lg px-4 gap-3">Import wallet</button>
+       <button type="button"  disabled
+      (click)="createWallet()"
+       class="btn btn-danger btn-lg px-4 gap-3">Connect wallet</button>
+    </div>
+    <input #numberIncrement class="form-control mt-4" type="number" placeholder="0" aria-label="number increment input">
+
+  </div>
+
+  <div *ngIf="wallet" class="col-lg-6 mx-auto">
+    <p> You are connected to the wallet {{wallet.address}}</p>
+    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+      <div class="card">
+        <div class="card-body">
+         My ether balance is: {{etherBalance}}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          My token balance is: {{tokenBalance}}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          My voting power is: {{votingPower}}
+        </div>
+      </div>
+    </div>
+      <p></p>
+      <p class="my-4"> Claim your tokens here.</p>
+      <button type="button"  
+      (click)="claimTokens()"
+       class="btn btn-danger btn-lg px-4 gap-3">Claim Token</button>
+
+</div>
+
+
